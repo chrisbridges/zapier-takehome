@@ -1,16 +1,49 @@
-'use strict';
-
-const { randomUUID } = require('node:crypto');
-const {
+import { randomUUID } from 'node:crypto';
+import {
+  ConflictError,
+  NetworkError,
+  NotFoundError,
+  ServerError,
   UsageClientError,
   ValidationError,
-  NotFoundError,
-  ConflictError,
-  ServerError,
-  NetworkError,
-} = require('./errors');
+  type UsageClientErrorOptions,
+} from './errors';
 
-function resolveFetch(customFetch) {
+export type RecordUsageParams = {
+  customerId: number;
+  service: string;
+  unitsConsumed: number;
+  pricePerUnit: number;
+  occurredAt?: string;
+};
+
+export type UsageRecord = {
+  id: number;
+  customerId: number;
+  service: string;
+  unitsConsumed: number;
+  pricePerUnit: number;
+  occurredAt: string;
+  billingPeriod: string;
+};
+
+export type UsageResponse = {
+  usageRecord: UsageRecord;
+  idempotentReplay: boolean;
+};
+
+export type RecordUsageOptions = {
+  idempotencyKey?: string;
+};
+
+export type UsageClientConfig = {
+  baseUrl: string;
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+  maxRetries?: number;
+};
+
+function resolveFetch(customFetch?: typeof fetch): typeof fetch {
   if (customFetch) {
     return customFetch;
   }
@@ -20,7 +53,7 @@ function resolveFetch(customFetch) {
   throw new Error('No fetch implementation available. Provide one in config.');
 }
 
-async function safeJson(response) {
+async function safeJson(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text) {
     return null;
@@ -32,14 +65,15 @@ async function safeJson(response) {
   }
 }
 
-function mapHttpError(status, payload) {
-  const message = payload && payload.message
-    ? payload.message
-    : `Request failed with status ${status}`;
-  const options = {
+function mapHttpError(status: number, payload: Record<string, unknown> | null): UsageClientError {
+  const message =
+    payload && typeof payload.message === 'string'
+      ? payload.message
+      : `Request failed with status ${status}`;
+  const options: UsageClientErrorOptions = {
     status,
-    code: payload && payload.code,
-    details: payload && payload.details,
+    code: typeof payload?.code === 'string' ? payload.code : undefined,
+    details: payload?.details,
   };
 
   switch (status) {
@@ -54,8 +88,8 @@ function mapHttpError(status, payload) {
   }
 }
 
-function createUsageClient(config = {}) {
-  if (!config.baseUrl) {
+export function createUsageClient(config: UsageClientConfig) {
+  if (!config?.baseUrl) {
     throw new Error('baseUrl is required');
   }
 
@@ -64,13 +98,16 @@ function createUsageClient(config = {}) {
   const maxRetries = config.maxRetries ?? 2;
   const fetchImpl = resolveFetch(config.fetch);
 
-  async function recordUsage(params, options = {}) {
+  async function recordUsage(
+    params: RecordUsageParams,
+    options: RecordUsageOptions = {}
+  ): Promise<UsageResponse> {
     const idempotencyKey = options.idempotencyKey || randomUUID();
     const url = `${baseUrl}/usage`;
     const body = JSON.stringify(params);
 
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-      let response;
+      let response: Response;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -94,17 +131,22 @@ function createUsageClient(config = {}) {
       }
 
       clearTimeout(timeout);
-      const payload = await safeJson(response);
+      const payload = (await safeJson(response)) as UsageResponse | Record<string, unknown> | null;
 
       if (response.status >= 500 && attempt < maxRetries) {
         continue;
       }
 
       if (response.status === 200 || response.status === 201) {
-        return payload;
+        if (!payload) {
+          throw new ServerError('Empty response body from usage service', {
+            status: response.status,
+          });
+        }
+        return payload as UsageResponse;
       }
 
-      throw mapHttpError(response.status, payload || {});
+      throw mapHttpError(response.status, (payload as Record<string, unknown>) || null);
     }
 
     throw new NetworkError('Failed to record usage after retries');
@@ -115,8 +157,7 @@ function createUsageClient(config = {}) {
   };
 }
 
-module.exports = {
-  createUsageClient,
+export {
   UsageClientError,
   ValidationError,
   NotFoundError,

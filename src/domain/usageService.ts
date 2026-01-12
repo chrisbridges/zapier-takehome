@@ -1,12 +1,57 @@
-'use strict';
+import { createHash } from 'node:crypto';
+import { stableStringify } from '../utils/stableStringify';
+import { ConflictError, NotFoundError, ValidationError, type ValidationDetail } from './errors';
+import type { DatabaseInstance } from '../db/database';
 
-const crypto = require('node:crypto');
-const { stableStringify } = require('../utils/stableStringify');
-const { ValidationError, NotFoundError, ConflictError } = require('./errors');
+type UsageInput = {
+  customerId: number;
+  service: string;
+  unitsConsumed: number;
+  pricePerUnit: number;
+  occurredAt?: string;
+};
 
-function parseUsageInput(input) {
-  const errors = [];
-  const parsed = {};
+type HashPayload = Omit<UsageInput, 'occurredAt'> & {
+  occurredAt: string | null;
+};
+
+type ParsedUsageInput = {
+  customerId: number;
+  service: string;
+  unitsConsumed: number;
+  pricePerUnit: number;
+  occurredAt: string;
+};
+
+type UsageRecord = {
+  id: number;
+  customerId: number;
+  service: string;
+  unitsConsumed: number;
+  pricePerUnit: number;
+  occurredAt: string;
+  billingPeriod: string;
+};
+
+type UsageResponse = {
+  usageRecord: UsageRecord;
+  idempotentReplay: boolean;
+};
+
+type UsageServiceResult = {
+  status: 200 | 201;
+  body: UsageResponse;
+};
+
+type IdempotencyRow = {
+  idempotency_key: string;
+  request_hash: string;
+  response_body: string;
+};
+
+function parseUsageInput(input: unknown): ParsedUsageInput {
+  const errors: ValidationDetail[] = [];
+  const parsed: Partial<ParsedUsageInput> = {};
 
   if (!input || typeof input !== 'object') {
     throw new ValidationError('Request body must be a JSON object', [
@@ -14,39 +59,40 @@ function parseUsageInput(input) {
     ]);
   }
 
-  const customerId = input.customerId;
-  if (!Number.isInteger(customerId)) {
+  const inputRecord = input as Record<string, unknown>;
+  const customerId = inputRecord.customerId;
+  if (typeof customerId !== 'number' || !Number.isInteger(customerId)) {
     errors.push({ field: 'customerId', message: 'customerId must be an integer.' });
   } else {
     parsed.customerId = customerId;
   }
 
-  const service = input.service;
+  const service = inputRecord.service;
   if (typeof service !== 'string' || service.trim() === '') {
     errors.push({ field: 'service', message: 'service must be a non-empty string.' });
   } else {
     parsed.service = service.trim();
   }
 
-  const unitsConsumed = input.unitsConsumed;
-  if (!Number.isInteger(unitsConsumed) || unitsConsumed < 0) {
+  const unitsConsumed = inputRecord.unitsConsumed;
+  if (typeof unitsConsumed !== 'number' || !Number.isInteger(unitsConsumed) || unitsConsumed < 0) {
     errors.push({ field: 'unitsConsumed', message: 'unitsConsumed must be a non-negative integer.' });
   } else {
     parsed.unitsConsumed = unitsConsumed;
   }
 
-  const pricePerUnit = input.pricePerUnit;
+  const pricePerUnit = inputRecord.pricePerUnit;
   if (typeof pricePerUnit !== 'number' || Number.isNaN(pricePerUnit) || pricePerUnit < 0) {
     errors.push({ field: 'pricePerUnit', message: 'pricePerUnit must be a non-negative number.' });
   } else {
     parsed.pricePerUnit = pricePerUnit;
   }
 
-  let occurredAt = input.occurredAt;
+  const occurredAt = inputRecord.occurredAt;
   if (occurredAt === undefined || occurredAt === null || occurredAt === '') {
     parsed.occurredAt = new Date().toISOString();
   } else {
-    const parsedDate = new Date(occurredAt);
+    const parsedDate = new Date(String(occurredAt));
     if (Number.isNaN(parsedDate.valueOf())) {
       errors.push({ field: 'occurredAt', message: 'occurredAt must be an ISO timestamp.' });
     } else {
@@ -58,19 +104,19 @@ function parseUsageInput(input) {
     throw new ValidationError('Validation failed', errors);
   }
 
-  return parsed;
+  return parsed as ParsedUsageInput;
 }
 
-function buildBillingPeriod(occurredAt) {
+function buildBillingPeriod(occurredAt: string): string {
   return occurredAt.slice(0, 7);
 }
 
-function hashPayload(payload) {
+function hashPayload(payload: HashPayload): string {
   const stableJson = stableStringify(payload);
-  return crypto.createHash('sha256').update(stableJson).digest('hex');
+  return createHash('sha256').update(stableJson).digest('hex');
 }
 
-function createUsageService(db) {
+export function createUsageService(db: DatabaseInstance) {
   const selectCustomer = db.prepare('SELECT id FROM customers WHERE id = ?');
   const selectIdempotency = db.prepare(
     'SELECT idempotency_key, request_hash, response_body FROM idempotency_keys WHERE idempotency_key = ?'
@@ -86,7 +132,7 @@ function createUsageService(db) {
      VALUES (?, ?, ?, ?, ?, ?)`
   );
 
-  const recordUsage = (input, idempotencyKey) => {
+  const recordUsage = (input: unknown, idempotencyKey: string | undefined): UsageServiceResult => {
     if (typeof idempotencyKey !== 'string' || idempotencyKey.trim() === '') {
       throw new ValidationError('Idempotency-Key header is required', [
         { field: 'Idempotency-Key', message: 'Idempotency-Key header is required.' },
@@ -94,8 +140,9 @@ function createUsageService(db) {
     }
 
     const parsed = parseUsageInput(input);
-    const occurredAtRaw = Object.prototype.hasOwnProperty.call(input, 'occurredAt')
-      ? input.occurredAt
+    const inputRecord = input as Record<string, unknown>;
+    const occurredAtRaw = Object.prototype.hasOwnProperty.call(inputRecord, 'occurredAt')
+      ? inputRecord.occurredAt
       : undefined;
     const occurredAtProvided = !(
       occurredAtRaw === undefined ||
@@ -105,7 +152,7 @@ function createUsageService(db) {
     const billingPeriod = buildBillingPeriod(parsed.occurredAt);
     const pricePerUnitCents = Math.round(parsed.pricePerUnit * 100);
 
-    const payloadForHash = {
+    const payloadForHash: HashPayload = {
       customerId: parsed.customerId,
       service: parsed.service,
       unitsConsumed: parsed.unitsConsumed,
@@ -114,14 +161,14 @@ function createUsageService(db) {
     };
 
     const requestHash = hashPayload(payloadForHash);
-    const existing = selectIdempotency.get(idempotencyKey);
+    const existing = selectIdempotency.get(idempotencyKey) as IdempotencyRow | undefined;
 
     if (existing) {
       if (existing.request_hash !== requestHash) {
         throw new ConflictError('Idempotency key reuse with different payload.');
       }
 
-      const stored = JSON.parse(existing.response_body);
+      const stored = JSON.parse(existing.response_body) as UsageResponse;
       return {
         status: 200,
         body: {
@@ -149,8 +196,8 @@ function createUsageService(db) {
         now
       );
 
-      const usageRecord = {
-        id: result.lastInsertRowid,
+      const usageRecord: UsageRecord = {
+        id: Number(result.lastInsertRowid),
         customerId: parsed.customerId,
         service: parsed.service,
         unitsConsumed: parsed.unitsConsumed,
@@ -159,7 +206,7 @@ function createUsageService(db) {
         billingPeriod,
       };
 
-      const responseBody = {
+      const responseBody: UsageResponse = {
         usageRecord,
         idempotentReplay: false,
       };
@@ -186,7 +233,3 @@ function createUsageService(db) {
     recordUsage,
   };
 }
-
-module.exports = {
-  createUsageService,
-};

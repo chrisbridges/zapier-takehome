@@ -1,16 +1,19 @@
-'use strict';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import { createUsageService } from '../domain/usageService';
+import type { DatabaseInstance } from '../db/database';
+import { ConflictError, NotFoundError, ValidationError } from '../domain/errors';
 
-const express = require('express');
-const { createUsageService } = require('../domain/usageService');
-const { ValidationError, NotFoundError, ConflictError } = require('../domain/errors');
+type AppDependencies = {
+  db: DatabaseInstance;
+};
 
-function createApp({ db }) {
+export function createApp({ db }: AppDependencies) {
   const app = express();
   const usageService = createUsageService(db);
 
   app.use(express.json());
 
-  app.post('/usage', (req, res, next) => {
+  app.post('/usage', (req: Request, res: Response, next: NextFunction) => {
     try {
       const idempotencyKey = req.get('Idempotency-Key');
       const result = usageService.recordUsage(req.body, idempotencyKey);
@@ -20,7 +23,7 @@ function createApp({ db }) {
     }
   });
 
-  app.use((err, req, res, next) => {
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof ValidationError) {
       return res.status(400).json({
         code: 'validation_error',
@@ -43,7 +46,8 @@ function createApp({ db }) {
       });
     }
 
-    if (err && err.type === 'entity.parse.failed') {
+    const parseError = err as { type?: string };
+    if (parseError && parseError.type === 'entity.parse.failed') {
       return res.status(400).json({
         code: 'invalid_json',
         message: 'Malformed JSON body.',
@@ -59,7 +63,3 @@ function createApp({ db }) {
 
   return app;
 }
-
-module.exports = {
-  createApp,
-};

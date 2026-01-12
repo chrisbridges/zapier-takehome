@@ -1,14 +1,19 @@
-'use strict';
+import Database from 'better-sqlite3';
 
-const Database = require('better-sqlite3');
+export type DatabaseInstance = ReturnType<typeof Database>;
 
-const SAMPLE_CUSTOMERS = [
+type CustomerSeed = {
+  id: number;
+  name: string;
+};
+
+const SAMPLE_CUSTOMERS: CustomerSeed[] = [
   { id: 123, name: 'Alice' },
   { id: 456, name: 'Bob' },
   { id: 789, name: 'Taylor' },
 ];
 
-function initializeSchema(db) {
+function initializeSchema(db: DatabaseInstance): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS customers (
       id INTEGER PRIMARY KEY,
@@ -42,7 +47,7 @@ function initializeSchema(db) {
   `);
 }
 
-function seedCustomers(db) {
+function seedCustomers(db: DatabaseInstance): void {
   const insert = db.prepare('INSERT OR IGNORE INTO customers (id, name) VALUES (?, ?)');
   const transaction = db.transaction(() => {
     for (const customer of SAMPLE_CUSTOMERS) {
@@ -53,14 +58,10 @@ function seedCustomers(db) {
   transaction();
 }
 
-function createDatabase(path) {
+export function createDatabase(path: string): DatabaseInstance {
   const db = new Database(path);
   db.pragma('foreign_keys = ON');
   initializeSchema(db);
   seedCustomers(db);
   return db;
 }
-
-module.exports = {
-  createDatabase,
-};
