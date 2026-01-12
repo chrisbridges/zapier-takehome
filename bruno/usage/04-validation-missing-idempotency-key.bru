@@ -1,0 +1,23 @@
+meta {
+  name: "Validation error: missing Idempotency-Key"
+  type: "http"
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/usage
+  body: json
+}
+
+headers {
+  Content-Type: "application/json"
+}
+
+body:json {
+  {
+  "customerId": "{{customerId}}",
+  "service": "{{service}}",
+  "unitsConsumed": "{{unitsConsumed}}",
+  "pricePerUnit": "{{pricePerUnit}}"
+  }
+}

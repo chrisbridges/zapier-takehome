@@ -1,0 +1,25 @@
+meta {
+  name: "Conflict on idempotency key reuse"
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/usage
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: "application/json"
+  Idempotency-Key: "{{idempotencyKey}}"
+}
+
+body:json {
+  {
+    "customerId": ""{{customerId}}"",
+  "service": "{{service}}",
+  "unitsConsumed": "{{unitsConsumedConflict}}",
+  "pricePerUnit": ""{{pricePerUnit}}""
+  }
+}
