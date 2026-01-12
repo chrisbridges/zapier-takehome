@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { stableStringify } from '../utils/stableStringify';
 import { ConflictError, NotFoundError, ValidationError, type ValidationDetail } from './errors';
 import type { DatabaseInstance } from '../db/database';
+import { HTTP_STATUS } from '../httpStatus';
 import type {
   HashPayload,
   IdempotencyRow,
@@ -130,7 +131,7 @@ export function createUsageService(db: DatabaseInstance) {
 
       const stored = JSON.parse(existing.response_body) as UsageResponse;
       return {
-        status: 200,
+        status: HTTP_STATUS.OK,
         body: {
           ...stored,
           idempotentReplay: true,
@@ -175,7 +176,7 @@ export function createUsageService(db: DatabaseInstance) {
         idempotencyKey,
         requestHash,
         JSON.stringify(responseBody),
-        201,
+        HTTP_STATUS.CREATED,
         usageRecord.id,
         now
       );
@@ -184,7 +185,7 @@ export function createUsageService(db: DatabaseInstance) {
     });
 
     return {
-      status: 201,
+      status: HTTP_STATUS.CREATED,
       body: transaction(),
     };
   };

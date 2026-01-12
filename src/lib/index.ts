@@ -8,6 +8,7 @@ import {
   ValidationError,
   type UsageClientErrorOptions,
 } from './errors';
+import { HTTP_STATUS } from '../httpStatus';
 import type {
   RecordUsageOptions,
   RecordUsageParams,
@@ -56,11 +57,11 @@ function mapHttpError(status: number, payload: Record<string, unknown> | null): 
   };
 
   switch (status) {
-    case 400:
+    case HTTP_STATUS.BAD_REQUEST:
       return new ValidationError(message, options);
-    case 404:
+    case HTTP_STATUS.NOT_FOUND:
       return new NotFoundError(message, options);
-    case 409:
+    case HTTP_STATUS.CONFLICT:
       return new ConflictError(message, options);
     default:
       return new ServerError(message, options);
@@ -112,11 +113,11 @@ export function createUsageClient(config: UsageClientConfig) {
       clearTimeout(timeout);
       const payload = (await safeJson(response)) as UsageResponse | Record<string, unknown> | null;
 
-      if (response.status >= 500 && attempt < maxRetries) {
+      if (response.status >= HTTP_STATUS.INTERNAL_SERVER_ERROR && attempt < maxRetries) {
         continue;
       }
 
-      if (response.status === 200 || response.status === 201) {
+      if (response.status === HTTP_STATUS.OK || response.status === HTTP_STATUS.CREATED) {
         if (!payload) {
           throw new ServerError('Empty response body from usage service', {
             status: response.status,

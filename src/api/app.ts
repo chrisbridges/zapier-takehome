@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { createUsageService } from '../domain/usageService';
 import type { DatabaseInstance } from '../db/database';
 import { ConflictError, NotFoundError, ValidationError } from '../domain/errors';
+import { HTTP_STATUS } from '../httpStatus';
 
 type AppDependencies = {
   db: DatabaseInstance;
@@ -25,7 +26,7 @@ export function createApp({ db }: AppDependencies) {
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (err instanceof ValidationError) {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         code: 'validation_error',
         message: err.message,
         details: err.details,
@@ -33,14 +34,14 @@ export function createApp({ db }: AppDependencies) {
     }
 
     if (err instanceof NotFoundError) {
-      return res.status(404).json({
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
         code: 'not_found',
         message: err.message,
       });
     }
 
     if (err instanceof ConflictError) {
-      return res.status(409).json({
+      return res.status(HTTP_STATUS.CONFLICT).json({
         code: 'conflict',
         message: err.message,
       });
@@ -48,14 +49,14 @@ export function createApp({ db }: AppDependencies) {
 
     const parseError = err as { type?: string };
     if (parseError && parseError.type === 'entity.parse.failed') {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         code: 'invalid_json',
         message: 'Malformed JSON body.',
       });
     }
 
     console.error('Unhandled error', err);
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: 'server_error',
       message: 'Unexpected error occurred.',
     });

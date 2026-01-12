@@ -34,7 +34,7 @@ export type UsageResponse = {
 };
 
 export type UsageServiceResult = {
-  status: 200 | 201;
+  status: typeof HTTP_STATUS.OK | typeof HTTP_STATUS.CREATED;
   body: UsageResponse;
 };
 
@@ -43,3 +43,4 @@ export type IdempotencyRow = {
   request_hash: string;
   response_body: string;
 };
+import type { HTTP_STATUS } from '../httpStatus';
