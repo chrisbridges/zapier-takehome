@@ -90,6 +90,12 @@ Run the container:
 docker run --rm -p 3000:3000 -v $(pwd)/data:/app/data usage-api
 ```
 
+## Bruno Collection
+
+I created a Bruno collection here so that anyone could test the API's functionality. Normally, I'm a big fan of including this within the repo as it allows business analysts, other engineers, etc to quickly and easily test functionality of the API.
+
+Unfortunately, I was running into issues debugging the collection so it is not expected to work. I kept it within this project to highlight higher-level thinking for production-level applications. I wanted to stay within the allotted time limit, so this was a trade-off I conceded. Functionality was thoroughly tested through code.
+
 ## Assumptions & Tradeoffs
 
 - “Current bill” is defined as the current calendar month in UTC, derived from `occurredAt`.
@@ -99,8 +105,11 @@ docker run --rm -p 3000:3000 -v $(pwd)/data:/app/data usage-api
 
 ## Future Improvements
 
-TODO:
+- Batching multiple requests could be enabled. This was foregone to pare down scope and complete the app within the allotted time.
+- Postgres would be implemented over SQLite.
+- Working Bruno collection
+- More robust and informative logging
 
-- bruno collection
-- dockerize
-  - one container for client, db, and lib?
+## Conclusion
+
+Thank you for your time and consideration. This was fun 😄
