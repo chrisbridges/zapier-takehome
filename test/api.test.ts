@@ -56,9 +56,9 @@ describe('Usage API', () => {
     });
   });
 
-  it('validates the request body type', async () => {
+  it('rejects non-object JSON bodies', async () => {
     await withServer(async ({ baseUrl }) => {
-      const response = await postUsage(baseUrl, 'not-an-object');
+      const response = await postUsage(baseUrl, []);
       expect(response.status).toBe(400);
       const body = await response.json();
       expect(body.code).toBe('validation_error');
