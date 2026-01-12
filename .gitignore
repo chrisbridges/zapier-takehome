@@ -6,5 +6,4 @@ data/*.sqlite
 package-lock.json
 dist/
 *.tsbuildinfo
-# Test artifacts
 coverage/
