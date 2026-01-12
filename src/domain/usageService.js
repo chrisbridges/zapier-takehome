@@ -94,6 +94,14 @@ function createUsageService(db) {
     }
 
     const parsed = parseUsageInput(input);
+    const occurredAtRaw = Object.prototype.hasOwnProperty.call(input, 'occurredAt')
+      ? input.occurredAt
+      : undefined;
+    const occurredAtProvided = !(
+      occurredAtRaw === undefined ||
+      occurredAtRaw === null ||
+      occurredAtRaw === ''
+    );
     const billingPeriod = buildBillingPeriod(parsed.occurredAt);
     const pricePerUnitCents = Math.round(parsed.pricePerUnit * 100);
 
@@ -102,7 +110,7 @@ function createUsageService(db) {
       service: parsed.service,
       unitsConsumed: parsed.unitsConsumed,
       pricePerUnit: parsed.pricePerUnit,
-      occurredAt: parsed.occurredAt,
+      occurredAt: occurredAtProvided ? parsed.occurredAt : null,
     };
 
     const requestHash = hashPayload(payloadForHash);
