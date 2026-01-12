@@ -110,6 +110,14 @@ Unfortunately, I was running into issues debugging the collection so it is not e
 - Working Bruno collection
 - More robust and informative logging
 
+## AI
+
+ChatGPT's Codex extension within VS Code was leveraged to improve test coverage and automate server boilerplate. My philosophy for AI is to heavily leverage test-driven development and iterate the functionality from there. Then, we can optimize for human-readability and style.
+
+For me personally, AI tools have renewed my love of code. It automates away so much of the boring stuff, while empowering me to focus on the aspects that are higher-leverage and more fun.
+
+That said, human wisdom and sound judgement are at a higher premium than ever. These tools are amazing when they work, but we can get in trouble when they are blindly trusted.
+
 ## Conclusion
 
 Thank you for your time and consideration. This was fun 😄
