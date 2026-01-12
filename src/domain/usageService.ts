@@ -70,7 +70,7 @@ function parseUsageInput(input: unknown): ParsedUsageInput {
 }
 
 function buildBillingPeriod(occurredAt: string): string {
-  return occurredAt.slice(0, 7);
+  return occurredAt.slice(0, 'YYYY-MM'.length);
 }
 
 function hashPayload(payload: HashPayload): string {
@@ -103,16 +103,14 @@ export function createUsageService(db: DatabaseInstance) {
 
     const parsed = parseUsageInput(input);
     const inputRecord = input as Record<string, unknown>;
-    const occurredAtRaw = Object.prototype.hasOwnProperty.call(inputRecord, 'occurredAt')
-      ? inputRecord.occurredAt
-      : undefined;
-    const occurredAtProvided = !(
-      occurredAtRaw === undefined ||
-      occurredAtRaw === null ||
-      occurredAtRaw === ''
-    );
+    const occurredAtProvided =
+      Object.prototype.hasOwnProperty.call(inputRecord, 'occurredAt') &&
+      inputRecord.occurredAt !== undefined &&
+      inputRecord.occurredAt !== null &&
+      inputRecord.occurredAt !== '';
     const billingPeriod = buildBillingPeriod(parsed.occurredAt);
-    const pricePerUnitCents = Math.round(parsed.pricePerUnit * 100);
+    const centsPerUnit = 100;
+    const pricePerUnitCents = Math.round(parsed.pricePerUnit * centsPerUnit);
 
     const payloadForHash: HashPayload = {
       customerId: parsed.customerId,
@@ -163,7 +161,7 @@ export function createUsageService(db: DatabaseInstance) {
         customerId: parsed.customerId,
         service: parsed.service,
         unitsConsumed: parsed.unitsConsumed,
-        pricePerUnit: pricePerUnitCents / 100,
+        pricePerUnit: pricePerUnitCents / centsPerUnit,
         occurredAt: parsed.occurredAt,
         billingPeriod,
       };
