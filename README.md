@@ -76,6 +76,20 @@ console.log(result);
 npm test
 ```
 
+## Docker
+
+Build the image:
+
+```bash
+docker build -t usage-api .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 3000:3000 -v $(pwd)/data:/app/data usage-api
+```
+
 ## Assumptions & Tradeoffs
 
 - “Current bill” is defined as the current calendar month in UTC, derived from `occurredAt`.
