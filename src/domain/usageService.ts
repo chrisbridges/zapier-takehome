@@ -2,52 +2,14 @@ import { createHash } from 'node:crypto';
 import { stableStringify } from '../utils/stableStringify';
 import { ConflictError, NotFoundError, ValidationError, type ValidationDetail } from './errors';
 import type { DatabaseInstance } from '../db/database';
-
-type UsageInput = {
-  customerId: number;
-  service: string;
-  unitsConsumed: number;
-  pricePerUnit: number;
-  occurredAt?: string;
-};
-
-type HashPayload = Omit<UsageInput, 'occurredAt'> & {
-  occurredAt: string | null;
-};
-
-type ParsedUsageInput = {
-  customerId: number;
-  service: string;
-  unitsConsumed: number;
-  pricePerUnit: number;
-  occurredAt: string;
-};
-
-type UsageRecord = {
-  id: number;
-  customerId: number;
-  service: string;
-  unitsConsumed: number;
-  pricePerUnit: number;
-  occurredAt: string;
-  billingPeriod: string;
-};
-
-type UsageResponse = {
-  usageRecord: UsageRecord;
-  idempotentReplay: boolean;
-};
-
-type UsageServiceResult = {
-  status: 200 | 201;
-  body: UsageResponse;
-};
-
-type IdempotencyRow = {
-  idempotency_key: string;
-  request_hash: string;
-  response_body: string;
-};
+import type {
+  HashPayload,
+  IdempotencyRow,
+  ParsedUsageInput,
+  UsageRecord,
+  UsageResponse,
+  UsageServiceResult,
+} from './usageService.types';
 
 function parseUsageInput(input: unknown): ParsedUsageInput {
   const errors: ValidationDetail[] = [];
