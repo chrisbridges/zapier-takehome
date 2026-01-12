@@ -1,0 +1,19 @@
+{
+  "name": "zapier-billing-takehome",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Usage tracking API and client library for Zapier takehome",
+  "main": "src/api/server.js",
+  "scripts": {
+    "start": "node src/api/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

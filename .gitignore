@@ -1,0 +1,8 @@
+.vscode
+node_modules/
+data/*.sqlite
+.data/
+.env
+
+# Test artifacts
+coverage/
